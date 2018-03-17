@@ -43,3 +43,6 @@ tmtagsHistory
 
 # other
 *.html
+
+# Data folder 
+data
