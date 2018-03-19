@@ -43,6 +43,7 @@ tmtagsHistory
 
 # other
 *.html
+.vscode
 
 # Data folder 
 data
