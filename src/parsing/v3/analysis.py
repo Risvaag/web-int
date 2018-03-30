@@ -3,11 +3,16 @@
 
 import pandas as pd
 import numpy as np
-import os
+import scipy.sparse as sp
 import sklearn.preprocessing as pp
+
+import os
+import sys
 
 from sklearn.metrics.pairwise import cosine_similarity
 from math import floor
+from time import time
+from scipy.io import mmread, mmwrite
 
 
 def init_dataframe(raw_data_file, formatted_file):
@@ -27,7 +32,7 @@ def init_dataframe(raw_data_file, formatted_file):
 def user_item_sparse(df, file):
     ''' Return a sparse user item matrix '''
     df.reset_index(inplace=True)
-    df.drop("ItemRating", 1, inplace=True)
+    # df.drop("ItemRating", 1, inplace=True)
 
     # Create and store the item lookup dataframe
     items = pd.DataFrame(df.Item.unique(), columns=["Item"])
@@ -48,20 +53,76 @@ def user_item_sparse(df, file):
     multi_df = multi_df[~multi_df.index.duplicated(keep="first")]
 
     # Store the multiindex in a csv so we can find the user ids and article urls later
+    multi_df.reset_index(inplace=True)
+
+    multi_df = multi_df[["UserIndex", "ItemIndex",
+                         "ItemRating", "User", "Item"]]
     multi_df.to_csv(file, sep="\t")
 
     # Return the User/Item matrix subset of the dataframe
-    return (merge_df.loc[:, "ItemIndex":"UserIndex"])
+    return (multi_df.loc[:, "ItemIndex":"ItemRating"])
 
 
 def load_or_fetch_ui(df, file):
     if os.path.isfile(file):
         print("Loading pre-existing User/Item Matrix...")
         df = pd.read_csv(file, sep="\t")
-        return (df.loc[:, "UserIndex":"ItemIndex"])
+        df = df[["UserIndex", "ItemIndex", "ItemRating", "User", "Item"]]
+        return (df.loc[:, "UserIndex":"ItemRating"])
     else:
         print("File not found. Creating User/Item Matrix")
         return user_item_sparse(df, file)
+
+
+def get_ratings(df):
+    n_users = df.UserIndex.unique().shape[0]
+    n_items = df.ItemIndex.unique().shape[0]
+
+    print("Creating a ({} X {}) matrix and filling it.".format(
+        n_users, n_items))
+
+    start_time = time()
+    ratings = np.zeros((n_users, n_items))
+
+    for row in df.itertuples():
+        ratings[row[1], row[2]] = row[3]
+
+    sparse_ratings = sp.csc_matrix(ratings)
+
+    print("Finished loading the ratings, after about {} seconds".format(
+        int(time()-start_time)))
+    return sparse_ratings
+
+
+def load_or_fetch_ratings(df, file):
+    if os.path.isfile(file + ".mtx"):
+        print("Loading ratings from file.")
+        return mmread(file + ".mtx")
+    else:
+        print("File not found. Creating sparse rating matrix.")
+        while True:
+            verif = input(
+                "This is potentially taxing on memory. Are you sure you want to proceed? (y/n): ")
+
+            if verif.lower() in ["y", "yes"]:
+                ratings = get_ratings(df)
+                mmwrite(file, ratings)
+                return ratings
+            elif verif.lower() in ["n", "no"]:
+                sys.exit(1)
+
+
+def chunking_dot(mat_a, mat_b chunk_size=100):
+    # Make a copy if the array is not already contiguous
+    R = np.empty((mat_a.shape[0], mat_b.shape[0]))
+    print(R.shape)
+    for i in range(0, R.shape[0], chunk_size):
+        end = i + chunk_size
+
+        print(
+            "Progress: {}% ({}/{}".format(floor(end/R.shape[0]), end, R.shape[0]))
+        R[i:end] = np.dot(mat_a[i:end], mat_b)
+    return R
 
 
 if __name__ == "__main__":
@@ -77,9 +138,20 @@ if __name__ == "__main__":
 
     # Get a User/Item matrix from the training data
     user_item_df = load_or_fetch_ui(train_df, "data/user_item_lookup.csv")
-    user_item_matrix = user_item_df.as_matrix()
 
-    cos_norm = pp.normalize(user_item_matrix, axis=0)
-    user_sim = cos_norm.dot(cos_norm.T)
-    user_sim_df = pd.DataFrame(user_sim)
-    print(user_sim)
+    # Create a user item rating matrix
+    ratings = load_or_fetch_ratings(user_item_df, "data/ratings")
+
+    # Calculate user-similarities
+    rating_norm = pp.normalize(ratings.tocsc(), axis=0)
+    #similarities = rating_norm * rating_norm.T
+
+    rating_matrix = rating_norm.toarray()
+    similarity = chunking_dot(rating_matrix, rating_matrix.T, chunk_size=1000)
+
+    #sim = ratings.dot(ratings.T).toarray()
+    # print(sim)
+
+    #rating_norm = cosine_similarity(ratings, dense_output=False)
+
+    # print(user_similarities)
