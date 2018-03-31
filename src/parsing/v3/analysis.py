@@ -12,12 +12,16 @@ import sys
 from sklearn.metrics.pairwise import cosine_similarity
 from math import floor
 from time import time
+from time import sleep
 from scipy.io import mmread, mmwrite
+
+LIMIT = 50000
+CHUNK_SIZE = 500  # Should be a divisor of LIMIT
 
 
 def init_dataframe(raw_data_file, formatted_file):
     if os.path.isfile(formatted_file):
-        print("Formatted file found. Loading data...")
+        print("Loading dataframe from file.")
         return pd.read_csv(formatted_file, sep="\t", index_col=[0, 1])
     else:
         print("No formatted file found. Indexing data and creating a new file")
@@ -65,7 +69,7 @@ def user_item_sparse(df, file):
 
 def load_or_fetch_ui(df, file):
     if os.path.isfile(file):
-        print("Loading pre-existing User/Item Matrix...")
+        print("Loading user/item matrix from file.")
         df = pd.read_csv(file, sep="\t")
         df = df[["UserIndex", "ItemIndex", "ItemRating", "User", "Item"]]
         return (df.loc[:, "UserIndex":"ItemRating"])
@@ -112,17 +116,44 @@ def load_or_fetch_ratings(df, file):
                 sys.exit(1)
 
 
-def chunking_dot(mat_a, mat_b chunk_size=100):
-    # Make a copy if the array is not already contiguous
-    R = np.empty((mat_a.shape[0], mat_b.shape[0]))
-    print(R.shape)
-    for i in range(0, R.shape[0], chunk_size):
-        end = i + chunk_size
+def similarity_cosine_by_chunk(rating, start, end):
+    if end > rating.shape[0]:
+        end = rating.shape[0]
 
-        print(
-            "Progress: {}% ({}/{}".format(floor(end/R.shape[0]), end, R.shape[0]))
-        R[i:end] = np.dot(mat_a[i:end], mat_b)
+    return cosine_similarity(X=rating[start:end], Y=rating)
+
+
+def chunked_similarities(rating, chunk_size=CHUNK_SIZE):
+    R = np.empty((rating.shape[0], rating.shape[0]))
+
+    for chunk_start in range(0, R.shape[0], chunk_size):
+        cosine_similarity_chunk = similarity_cosine_by_chunk(
+            rating, chunk_start, chunk_start+chunk_size)
+
+        R[chunk_start: chunk_start + chunk_size] = cosine_similarity_chunk
+        print("Finished frame {}/{}".format(chunk_start +
+                                            chunk_size, rating.shape[0]))
+
     return R
+
+
+def load_or_fetch_similarities(ratings, file):
+    if os.path.isfile(file):
+        print("Loading similarities from file.")
+        return np.load(file)
+    else:
+        rating_norm = pp.normalize(ratings.tocsr(), axis=1)
+
+        # Limit to 50k users (due to memory limitations)
+        ratings_split = rating_norm[:LIMIT]
+        rating_matrix = ratings_split.toarray()
+        similarities = chunked_similarities(rating_matrix)
+        np.save(file, similarities)
+        return similarities
+
+
+def get_user_index(df, num):
+    return df[df.UserIndex == num]
 
 
 if __name__ == "__main__":
@@ -138,20 +169,11 @@ if __name__ == "__main__":
 
     # Get a User/Item matrix from the training data
     user_item_df = load_or_fetch_ui(train_df, "data/user_item_lookup.csv")
+    #print(get_user_index(user_item_df, 4))
 
     # Create a user item rating matrix
     ratings = load_or_fetch_ratings(user_item_df, "data/ratings")
 
     # Calculate user-similarities
-    rating_norm = pp.normalize(ratings.tocsc(), axis=0)
-    #similarities = rating_norm * rating_norm.T
-
-    rating_matrix = rating_norm.toarray()
-    similarity = chunking_dot(rating_matrix, rating_matrix.T, chunk_size=1000)
-
-    #sim = ratings.dot(ratings.T).toarray()
-    # print(sim)
-
-    #rating_norm = cosine_similarity(ratings, dense_output=False)
-
-    # print(user_similarities)
+    similarities = load_or_fetch_similarities(ratings, "data/similarities.npy")
+    print(similarities)
