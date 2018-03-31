@@ -156,6 +156,10 @@ def get_user_index(df, num):
     return df[df.UserIndex == num]
 
 
+def get_item_index(df, num):
+    return df[df.UserIndex == num].ItemIndex.values
+
+
 def get_user_similarities(mat, num, thresh=0.01):
     for i in range(0, len(mat[num])):
         sim = mat[num][i]
@@ -164,15 +168,27 @@ def get_user_similarities(mat, num, thresh=0.01):
             print("User: {}, similarity: {}".format(i, sim))
 
 
-def get_top_similar(mat, user, num=10):
+def get_top_similar(mat, user, lookup_df, num=10):
     user_row = mat[user]
     indexes = np.argpartition(user_row, -num)[-num:]
+
+    read_items = get_item_index(lookup_df, user)
+    suggestions = {}
 
     for i in range(0, len(indexes)):
         if indexes[i] == user:
             continue
+
+        items = get_item_index(lookup_df, indexes[i])
+
+        for item in items:
+            if item not in read_items and item not in suggestions:
+                suggestions[item] = user_row[indexes[i]]
+
         print("{}: User - {}, Similarity - {}%".format(i + 1,
                                                        indexes[i], floor(user_row[indexes[i]] * 100)))
+
+    print("Suggestions: ", suggestions)
 
 
 if __name__ == "__main__":
@@ -195,8 +211,9 @@ if __name__ == "__main__":
 
     # Calculate user-similarities
     similarities = load_or_fetch_similarities(ratings, "data/similarities.npy")
-    get_top_similar(similarities, 0)
-
-    #get_user_similarities(similarities, 37752)
+    get_top_similar(similarities, 0, user_item_df)
     # print(get_user_index(user_item_df, 0))
-    # print(get_user_index(user_item_df, 37298))
+    # print(get_user_index(user_item_df, 50))
+    # print(get_user_index(user_item_df, 7998))
+    # print("--")
+    # print(get_item_index(user_item_df, 0))
