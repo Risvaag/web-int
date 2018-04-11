@@ -4,6 +4,7 @@
 Created on Thu Feb  8 14:46:23 2018
 
 @author: zhanglemei
+Edited by Kim Erling Rasmussen
 """
 try:
     from contextlib import nested  # Python 2
@@ -11,7 +12,7 @@ except ImportError:
     from contextlib import ExitStack, contextmanager
 import json
 import os
-output_fname1 = 'dataset1.data'
+output_fname1 = 'smallerDataset1.data'
 output_fname2 = 'dataset2.data'
 
 rootPath=os.path.dirname(__file__)
@@ -27,7 +28,7 @@ with open(output_fname1, 'a') as f1:
         with open(output_fname2, 'a') as f2:
             for line in open(input_file):
                 counter += 1
-                if counter == 100000:
+                if counter == 1000000:
                     break
                 obj = json.loads(line.strip())
                 try:
@@ -37,7 +38,8 @@ with open(output_fname1, 'a') as f1:
                 except Exception:
                     continue
                 if not keywords=='None':
-                    print(",".join([uid, iid, keywords]), file=f2)
+                    print(uid + "\t" + iid + "\t" + str(keywords), file=f2)
+                    #print(",".join([uid, iid, keywords]), file=f2)
                 if not active_time=='0':
                     #print(",".join([uid, iid, active_time]).encode('utf8'), file=f1)
                     print(uid+"\t"+ iid+"\t"+ str(active_time), file=f1)

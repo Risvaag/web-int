@@ -16,13 +16,13 @@ reader = Reader(line_format='user item rating', sep='\t')
 
 
 
-def SVDalgo():
+def SVDAlgo():
 
     data = Dataset.load_from_file('dataset1.data', reader=reader)
     # data = Dataset.load_builtin('ml-100k')
 
     # define a cross-validation iterator
-    kf = KFold(n_splits=3)
+    kf = KFold(n_splits=5)
 
     algo = SVD()
 
@@ -34,6 +34,17 @@ def SVDalgo():
         # Compute and print Root Mean Squared Error
         accuracy.rmse(predictions, verbose=True)
 
+def KNNBasicAlgo(userID, instanceID, trueRating, k=5):
+    data = Dataset.load_from_file('smallerDataset1.data', reader=reader)
 
+    #kf = KFold(n_splits=3)
+    trainset = data.build_full_trainset()
+
+    algo = KNNBasic(k=k, sim_options={'name':'MSD', 'user_based':False})
+    algo.fit(trainset)
+
+    prediction = algo.predict(userID, instanceID, trueRating, verbose=True)
+    #algo.fit(trainset).test(testset)
 if __name__ == '__main__':
-    SVDalgo()
+    #SVDAlgo()
+    KNNBasicAlgo("cx:iol0os2i30xf6xbc:enn7ciik36v3","9d615dd08d92c8e9670fb72b5c78cbc6b52501c4", 11)
