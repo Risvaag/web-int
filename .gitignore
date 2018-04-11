@@ -44,6 +44,8 @@ tmtagsHistory
 # other
 *.html
 .vscode
+.data
 
 # Data folder 
 data
+one_week/
