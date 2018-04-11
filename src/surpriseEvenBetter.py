@@ -40,7 +40,7 @@ def KNNBasicAlgo(userID, instanceID, trueRating, k=5):
     #kf = KFold(n_splits=3)
     trainset = data.build_full_trainset()
 
-    algo = KNNBasic(k=k, sim_options={'name':'MSD', 'user_based':False})
+    algo = KNNBasic(k=k, sim_options={'name':'cosine', 'user_based':False})
     algo.fit(trainset)
 
     prediction = algo.predict(userID, instanceID, trueRating, verbose=True)
