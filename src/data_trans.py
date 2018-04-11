@@ -31,7 +31,7 @@ with open(output_fname1, 'a') as f1:
                     break
                 obj = json.loads(line.strip())
                 try:
-                    uid, iid = obj['userId'], obj['url']
+                    uid, iid = obj['userId'], obj['id']
                     keywords = obj['keywords'] if 'keywords' in obj else 'None'
                     active_time = str(obj['activeTime']) if 'activeTime' in obj else '0'
                 except Exception:
