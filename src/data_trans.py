@@ -14,10 +14,12 @@ import os
 output_fname1 = 'dataset1.data'
 output_fname2 = 'dataset2.data'
 
-input_file = os.path.expanduser(r"C:\Users\kimme\Git\web-int\src\test.data")
+rootPath=os.path.dirname(__file__)
+relativePath = "/one_week/20170102"
+input_file = rootPath+""+relativePath
+print(input_file)
+#input_file = os.path.join(rootPath,relativePath).replace('\\','/')
 
-input_fname = 'one-week'+os.sep+'20170101'
-rootPath = os.path.abspath('.')
 #input_file = rootPath + os.sep + input_fname
 counter = 0
 print ('>>>Start reading file...')
@@ -35,8 +37,8 @@ with open(output_fname1, 'a') as f1:
                 except Exception:
                     continue
                 if not keywords=='None':
-                    print(",".join([uid, iid, keywords]).encode('utf8'), file=f2)
+                    print(",".join([uid, iid, keywords]), file=f2)
                 if not active_time=='0':
                     #print(",".join([uid, iid, active_time]).encode('utf8'), file=f1)
-                    print(uid+","+ iid+","+ str(active_time), file=f1)
+                    print(uid+"\t"+ iid+"\t"+ str(active_time), file=f1)
 print ('>>>Done!')
